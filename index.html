@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스톱워치</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      font-family: -apple-system, 'Helvetica Neue', sans-serif;
+      user-select: none;
+    }
+
+    /* 아이폰 17 프로 프레임 */
+    .phone {
+      width: 393px;
+      height: 852px;
+      background: #111;
+      border-radius: 55px;
+      position: relative;
+      box-shadow:
+        0 0 0 1px #2a2a2a,
+        0 0 0 3px #1a1a1a,
+        0 0 0 5px #3a3a3a,
+        0 30px 80px rgba(0,0,0,0.9),
+        inset 0 0 0 1px #2a2a2a;
+      overflow: hidden;
+    }
+
+    /* 티타늄 사이드 프레임 */
+    .phone::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 55px;
+      border: 2px solid transparent;
+      background: linear-gradient(145deg, #5a5a5a, #2a2a2a, #4a4a4a, #1a1a1a) border-box;
+      -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: destination-out;
+      mask-composite: exclude;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* 다이나믹 아일랜드 */
+    .dynamic-island {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 126px;
+      height: 37px;
+      background: #000;
+      border-radius: 20px;
+      z-index: 20;
+      box-shadow: 0 0 0 1px #1a1a1a;
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0;
+      background: #1c1c1e;
+      border-radius: 53px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 상단 탭 */
+    .top-bar {
+      padding: 70px 24px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .tab {
+      font-size: 17px;
+      font-weight: 600;
+      color: #ff8c00;
+      letter-spacing: -0.4px;
+    }
+
+    .tab-inactive {
+      color: #636366;
+    }
+
+    /* 메인 타이머 영역 */
+    .timer-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 24px;
+      margin-top: -60px;
+    }
+
+    .time-display {
+      font-size: 86px;
+      font-weight: 300;
+      letter-spacing: -4px;
+      color: #fff;
+      line-height: 1;
+      margin-bottom: 2px;
+      transition: color 0.3s;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .time-display.running { color: #ff8c00; }
+
+    .ms-display {
+      font-size: 86px;
+      font-weight: 300;
+      letter-spacing: -4px;
+      color: #636366;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+      transition: color 0.3s;
+    }
+
+    /* 버튼 영역 */
+    .btn-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 36px;
+      margin-bottom: 24px;
+    }
+
+    .circle-btn {
+      width: 84px;
+      height: 84px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      font-size: 17px;
+      font-weight: 600;
+      font-family: inherit;
+      letter-spacing: -0.3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s, opacity 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .circle-btn:active { transform: scale(0.92); opacity: 0.8; }
+
+    #btn-lap {
+      background: #2c2c2e;
+      color: #fff;
+    }
+
+    #btn-lap:disabled { color: #48484a; }
+
+    #btn-start {
+      background: #ff8c00;
+      color: #fff;
+      box-shadow: 0 0 28px rgba(255,140,0,0.55);
+    }
+
+    #btn-start.stop {
+      background: #ff3b30;
+      box-shadow: 0 0 28px rgba(255,59,48,0.5);
+    }
+
+    /* 랩 목록 */
+    .lap-wrapper {
+      overflow: hidden;
+      border-top: 0.5px solid #38383a;
+      margin: 0 24px 44px;
+      height: 220px;
+    }
+
+    .lap-list {
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    .lap-list::-webkit-scrollbar { display: none; }
+
+    .lap-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 13px 0;
+      border-bottom: 0.5px solid #38383a;
+      animation: slideDown 0.22s ease;
+    }
+
+    .lap-item:first-child .lap-total,
+    .lap-item:first-child .lap-split { color: #ff8c00; }
+
+    .lap-num {
+      font-size: 17px;
+      color: #fff;
+      width: 60px;
+    }
+
+    .lap-split {
+      font-size: 17px;
+      color: #636366;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .lap-total {
+      font-size: 17px;
+      color: #fff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 홈 인디케이터 */
+    .home-bar {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 134px;
+      height: 5px;
+      background: #fff;
+      border-radius: 3px;
+      opacity: 0.3;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <div class="dynamic-island"></div>
+    <div class="screen">
+      <div class="top-bar">
+        <span class="tab tab-inactive">알람</span>
+        <span class="tab">스톱워치</span>
+        <span class="tab tab-inactive">타이머</span>
+      </div>
+
+      <div class="timer-area">
+        <div class="time-display" id="display">00:00</div>
+        <div class="ms-display" id="ms">.00</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="circle-btn" id="btn-lap" disabled>랩</button>
+        <button class="circle-btn" id="btn-start">시작</button>
+      </div>
+
+      <div class="lap-wrapper">
+        <div class="lap-list" id="lap-list"></div>
+      </div>
+    </div>
+    <div class="home-bar"></div>
+  </div>
+
+  <script>
+    let startTime = 0, elapsed = 0, timerInterval = null;
+    let running = false, laps = [], lastLapElapsed = 0;
+    let lapBtnMode = 'lap';
+
+    const display = document.getElementById('display');
+    const msEl = document.getElementById('ms');
+    const btnStart = document.getElementById('btn-start');
+    const btnLap = document.getElementById('btn-lap');
+    const lapList = document.getElementById('lap-list');
+
+    function fmt(ms) {
+      const s = Math.floor(ms / 1000);
+      const m = Math.floor(s / 60);
+      const c = Math.floor((ms % 1000) / 10);
+      return {
+        time: `${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`,
+        ms: `.${String(c).padStart(2,'0')}`
+      };
+    }
+
+    function tick() {
+      elapsed = Date.now() - startTime;
+      const f = fmt(elapsed);
+      display.textContent = f.time;
+      msEl.textContent = f.ms;
+    }
+
+    function startTimer() {
+      startTime = Date.now() - elapsed;
+      timerInterval = setInterval(tick, 10);
+      running = true;
+      display.classList.add('running');
+      msEl.style.color = '#ff6a0099';
+      btnStart.textContent = '정지';
+      btnStart.classList.add('stop');
+      btnLap.disabled = false;
+      btnLap.textContent = '랩';
+      lapBtnMode = 'lap';
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      running = false;
+      display.classList.remove('running');
+      msEl.style.color = '#636366';
+      btnStart.textContent = '시작';
+      btnStart.classList.remove('stop');
+      btnLap.disabled = false;
+      btnLap.textContent = '재설정';
+      lapBtnMode = 'reset';
+    }
+
+    function reset() {
+      elapsed = 0; lastLapElapsed = 0; laps = [];
+      display.textContent = '00:00';
+      msEl.textContent = '.00';
+      lapList.innerHTML = '';
+      btnLap.disabled = true;
+      btnLap.textContent = '랩';
+      lapBtnMode = 'lap';
+    }
+
+    function addLap() {
+      const split = elapsed - lastLapElapsed;
+      lastLapElapsed = elapsed;
+      laps.unshift({ num: laps.length + 1, total: elapsed, split });
+      lapList.innerHTML = laps.map((lap, i) => {
+        const t = fmt(lap.total);
+        const s = fmt(lap.split);
+        return `<div class="lap-item">
+          <span class="lap-num">랩 ${laps.length - i}</span>
+          <span class="lap-split">${s.time}${s.ms}</span>
+          <span class="lap-total">${t.time}${t.ms}</span>
+        </div>`;
+      }).join('');
+    }
+
+    btnStart.addEventListener('click', () => running ? stopTimer() : startTimer());
+    btnLap.addEventListener('click', () => lapBtnMode === 'lap' ? addLap() : reset());
+  </script>
+</body>
+</html>
